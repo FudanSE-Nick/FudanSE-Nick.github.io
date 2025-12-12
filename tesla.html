@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tesla Camera 播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #e31937;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .container {
+            flex: 1;
+            padding: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .upload-section {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 2px dashed #444;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .upload-section:hover {
+            border-color: #e31937;
+            background: #222;
+        }
+
+        .upload-section.active {
+            border-color: #e31937;
+            background: #252525;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 10px 0;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #e31937 0%, #c4142d 100%);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            font-size: 16px;
+        }
+
+        .file-input-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(227, 25, 55, 0.4);
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 4 / 3;
+        }
+
+        .video-container canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            background: #000;
+        }
+
+        .video-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 10;
+        }
+
+        .controls {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e31937 0%, #ff4757 100%);
+            width: 0%;
+            transition: width 0.1s linear;
+            border-radius: 4px;
+        }
+
+        .control-buttons {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #e31937 0%, #c4142d 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(227, 25, 55, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #2d2d2d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #3d3d3d;
+        }
+
+        .time-display {
+            color: #aaa;
+            font-family: monospace;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .export-section {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .export-section h3 {
+            color: #e31937;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .export-controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .export-camera-select {
+            background: #101010;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 6px;
+            min-width: 240px;
+            font-size: 14px;
+        }
+
+        .export-camera-select option:disabled {
+            color: #555;
+        }
+
+        .status-message {
+            background: #2d2d2d;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status-message.recording {
+            display: block;
+            background: rgba(227, 25, 55, 0.2);
+            border: 1px solid #e31937;
+            color: #ff6b7a;
+        }
+
+        .status-message.info {
+            display: block;
+            background: rgba(52, 152, 219, 0.2);
+            border: 1px solid #3498db;
+            color: #5dade2;
+        }
+
+        .status-message.error {
+            display: block;
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid #e74c3c;
+            color: #ff9387;
+        }
+
+        .instructions {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e31937;
+        }
+
+        .instructions h3 {
+            color: #e31937;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .instructions ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .instructions li {
+            padding: 8px 0;
+            color: #ccc;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .instructions li:before {
+            content: "▸ ";
+            color: #e31937;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .camera-position {
+            display: inline-block;
+            background: rgba(227, 25, 55, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 Tesla Camera 播放器</h1>
+        <p>支持多视频同步播放与带时间戳水印的视频导出</p>
+    </div>
+
+    <div class="container">
+        <div class="instructions">
+            <h3>使用说明</h3>
+            <ul>
+                <li>选择特斯拉行车记录仪的视频文件（前、后、左B柱、左侧、右B柱、右侧，最多6个）</li>
+                <li>视频文件名格式应为：YYYY-MM-DD_HH-MM-SS-camera.mp4</li>
+                <li>所有视频将同步播放，时间戳基于文件名自动解析</li>
+                <li>点击"开始录制"可导出带时间戳水印的合成视频</li>
+                <li>支持从六路摄像头中任意选择单路进行导出</li>
+            </ul>
+        </div>
+
+        <div class="upload-section" id="uploadSection">
+            <h2 style="margin-bottom: 15px; color: #e31937;">选择视频文件</h2>
+            <p style="color: #888; margin-bottom: 20px;">请选择前、后、左B柱、左侧、右B柱、右侧摄像头的视频文件（最多6个）</p>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" multiple accept="video/*">
+                <label for="fileInput" class="file-input-btn">📁 选择文件</label>
+            </div>
+            <div id="fileList" style="margin-top: 20px; text-align: left; color: #aaa;"></div>
+        </div>
+
+        <div class="video-grid" id="videoGrid" style="display: none;">
+            <div class="video-container">
+                <div class="video-label">前 <span class="camera-position">FRONT</span></div>
+                <canvas id="canvasFront"></canvas>
+            </div>
+            <div class="video-container">
+                <div class="video-label">后 <span class="camera-position">BACK</span></div>
+                <canvas id="canvasBack"></canvas>
+            </div>
+            <div class="video-container">
+                <div class="video-label">左B柱 <span class="camera-position">LEFT PILLAR</span></div>
+                <canvas id="canvasLeftPillar"></canvas>
+            </div>
+            <div class="video-container">
+                <div class="video-label">左侧 <span class="camera-position">LEFT REPEATER</span></div>
+                <canvas id="canvasLeft"></canvas>
+            </div>
+            <div class="video-container">
+                <div class="video-label">右B柱 <span class="camera-position">RIGHT PILLAR</span></div>
+                <canvas id="canvasRightPillar"></canvas>
+            </div>
+            <div class="video-container">
+                <div class="video-label">右侧 <span class="camera-position">RIGHT REPEATER</span></div>
+                <canvas id="canvasRight"></canvas>
+            </div>
+        </div>
+
+        <div class="controls" id="controls" style="display: none;">
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-bar-fill" id="progressFill"></div>
+            </div>
+            <div class="control-buttons">
+                <button class="btn btn-secondary" id="playPauseBtn">▶️ 播放</button>
+                <button class="btn btn-secondary" id="stopBtn">⏹️ 停止</button>
+                <div class="time-display">
+                    <span id="currentTime">00:00</span>
+                    <span>/</span>
+                    <span id="duration">00:00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="export-section" id="exportSection" style="display: none;">
+            <h3>🎬 视频导出</h3>
+            <div class="export-controls">
+                <button class="btn btn-primary" id="startRecBtn" disabled>🔴 开始录制</button>
+                <button class="btn btn-primary" id="stopRecBtn" disabled>⏹️ 停止录制并下载</button>
+                <select id="exportCameraSelect" class="export-camera-select">
+                    <option value="">请选择要导出的摄像头</option>
+                </select>
+            </div>
+            <div class="status-message" id="statusMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        const videos = {
+            front: null,
+            back: null,
+            left_pillar: null,
+            left_repeater: null,
+            right_pillar: null,
+            right_repeater: null
+        };
+
+        const canvases = {
+            front: document.getElementById('canvasFront'),
+            back: document.getElementById('canvasBack'),
+            left_pillar: document.getElementById('canvasLeftPillar'),
+            left_repeater: document.getElementById('canvasLeft'),
+            right_pillar: document.getElementById('canvasRightPillar'),
+            right_repeater: document.getElementById('canvasRight')
+        };
+
+        const contexts = {
+            front: canvases.front.getContext('2d'),
+            back: canvases.back.getContext('2d'),
+            left_pillar: canvases.left_pillar.getContext('2d'),
+            left_repeater: canvases.left_repeater.getContext('2d'),
+            right_pillar: canvases.right_pillar.getContext('2d'),
+            right_repeater: canvases.right_repeater.getContext('2d')
+        };
+
+        const cameraLabels = {
+            front: '前摄 FRONT',
+            back: '后摄 BACK',
+            left_pillar: '左B柱 LEFT PILLAR',
+            left_repeater: '左侧 LEFT REPEATER',
+            right_pillar: '右B柱 RIGHT PILLAR',
+            right_repeater: '右侧 RIGHT REPEATER'
+        };
+
+        const exportCameraSelect = document.getElementById('exportCameraSelect');
+
+        function updateStartButtonState() {
+            const startButton = document.getElementById('startRecBtn');
+            if (!startButton || !exportCameraSelect) {
+                return;
+            }
+            if (isRecording) {
+                startButton.disabled = true;
+                return;
+            }
+            startButton.disabled = !exportCameraSelect.value;
+        }
+
+        function updateExportCameraSelect() {
+            if (!exportCameraSelect) {
+                return;
+            }
+
+            const previousValue = exportCameraSelect.value;
+            const availableCameras = Object.keys(videos).filter(key => videos[key]);
+
+            exportCameraSelect.innerHTML = '<option value="">请选择要导出的摄像头</option>';
+
+            Object.entries(cameraLabels).forEach(([key, label]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = label;
+                option.disabled = !videos[key];
+                exportCameraSelect.appendChild(option);
+            });
+
+            if (previousValue && videos[previousValue]) {
+                exportCameraSelect.value = previousValue;
+            } else if (availableCameras.length > 0) {
+                exportCameraSelect.value = availableCameras[0];
+            } else {
+                exportCameraSelect.value = '';
+            }
+
+            updateStartButtonState();
+        }
+
+        if (exportCameraSelect) {
+            exportCameraSelect.addEventListener('change', updateStartButtonState);
+        }
+
+        let isPlaying = false;
+        let animationId = null;
+        let startTime = null;
+        let recorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+
+        updateExportCameraSelect();
+
+        const FPS = 25;
+        const BITRATE = 5000000;
+
+        // 获取支持的视频格式
+        function getSupportedMimeType() {
+            const types = [
+                ['video/mp4; codecs=avc1', 'mp4'],
+                ['video/mp4', 'mp4'],
+                ['video/webm; codecs=vp9', 'webm'],
+                ['video/webm', 'webm']
+            ];
+            
+            for (const [mimeType, ext] of types) {
+                if (MediaRecorder.isTypeSupported(mimeType)) {
+                    return { mimeType, ext };
+                }
+            }
+            return { mimeType: 'video/webm', ext: 'webm' };
+        }
+
+        const supportedFormat = getSupportedMimeType();
+
+        // 解析文件名获取时间戳
+        function parseTimestamp(filename) {
+            const match = filename.match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})/);
+            if (match) {
+                const [, year, month, day, hour, minute, second] = match;
+                return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`).getTime();
+            }
+            return null;
+        }
+
+        // 识别摄像头类型
+        function getCameraType(filename) {
+            const lower = filename.toLowerCase();
+            if (lower.includes('front')) return 'front';
+            if (lower.includes('back')) return 'back';
+            if (lower.includes('left_pillar')) return 'left_pillar';
+            if (lower.includes('left_repeater')) return 'left_repeater';
+            if (lower.includes('right_pillar')) return 'right_pillar';
+            if (lower.includes('right_repeater')) return 'right_repeater';
+            return null;
+        }
+
+        // 格式化时间显示
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 格式化日期时间
+        function formatDateTime(timestamp) {
+            const date = new Date(timestamp);
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const hour = date.getHours().toString().padStart(2, '0');
+            const minute = date.getMinutes().toString().padStart(2, '0');
+            const second = date.getSeconds().toString().padStart(2, '0');
+            return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+        }
+
+        // 文件选择处理
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '<h4 style="color: #e31937; margin-bottom: 10px;">已选择的文件：</h4>';
+            
+            let validFiles = 0;
+
+            for (const file of files) {
+                const cameraType = getCameraType(file.name);
+                const timestamp = parseTimestamp(file.name);
+                
+                if (cameraType && timestamp) {
+                    const video = document.createElement('video');
+                    video.src = URL.createObjectURL(file);
+                    video.load();
+                    
+                    videos[cameraType] = { element: video, timestamp, name: file.name };
+                    validFiles++;
+                    
+                    const item = document.createElement('div');
+                    item.style.padding = '5px 0';
+                    item.innerHTML = `✓ ${file.name} <span style="color: #e31937;">[${cameraType.toUpperCase()}]</span>`;
+                    fileList.appendChild(item);
+                }
+            }
+
+            if (validFiles > 0) {
+                document.getElementById('uploadSection').classList.add('active');
+                await initVideos();
+            }
+        });
+
+        // 初始化视频
+        async function initVideos() {
+            const loadedCameras = Object.keys(videos).filter(k => videos[k]);
+            
+            if (loadedCameras.length === 0) return;
+
+            // 等待所有视频元数据加载
+            await Promise.all(
+                loadedCameras.map(camera => 
+                    new Promise(resolve => {
+                        videos[camera].element.addEventListener('loadedmetadata', resolve, { once: true });
+                    })
+                )
+            );
+
+            // 设置canvas尺寸
+            loadedCameras.forEach(camera => {
+                const video = videos[camera].element;
+                canvases[camera].width = video.videoWidth;
+                canvases[camera].height = video.videoHeight;
+                contexts[camera].font = `${canvases[camera].width / 30}px Arial`;
+            });
+
+            // 找到最早的时间戳作为基准
+            startTime = Math.min(...loadedCameras.map(c => videos[c].timestamp));
+
+            // 显示界面
+            document.getElementById('videoGrid').style.display = 'grid';
+            document.getElementById('controls').style.display = 'block';
+            document.getElementById('exportSection').style.display = 'block';
+            updateExportCameraSelect();
+
+            // 更新时长显示
+            const maxDuration = Math.max(...loadedCameras.map(c => videos[c].element.duration));
+            document.getElementById('duration').textContent = formatTime(maxDuration);
+
+            renderFrame();
+        }
+
+        // 渲染帧
+        function renderFrame() {
+            Object.keys(videos).forEach(camera => {
+                if (!videos[camera]) return;
+
+                const video = videos[camera].element;
+                const canvas = canvases[camera];
+                const ctx = contexts[camera];
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // 添加时间戳水印
+                const currentTimestamp = startTime + video.currentTime * 1000;
+                const timeText = formatDateTime(currentTimestamp);
+                const textMetrics = ctx.measureText(timeText);
+                const textWidth = textMetrics.width;
+                const textHeight = textMetrics.actualBoundingBoxAscent + textMetrics.actualBoundingBoxDescent;
+
+                const x = canvas.width - textWidth - canvas.width / 50;
+                const y = canvas.height - canvas.width / 45;
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(x, y - textMetrics.actualBoundingBoxAscent, textWidth, textHeight);
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillText(timeText, x, y);
+            });
+
+            // 更新进度条
+            const activeVideos = Object.values(videos).filter(v => v);
+            if (activeVideos.length > 0) {
+                const avgTime = activeVideos.reduce((sum, v) => sum + v.element.currentTime, 0) / activeVideos.length;
+                const avgDuration = activeVideos.reduce((sum, v) => sum + v.element.duration, 0) / activeVideos.length;
+                const progress = (avgTime / avgDuration) * 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('currentTime').textContent = formatTime(avgTime);
+            }
+
+            if (isPlaying) {
+                animationId = requestAnimationFrame(renderFrame);
+            }
+        }
+
+        // 播放/暂停
+        document.getElementById('playPauseBtn').addEventListener('click', () => {
+            const btn = document.getElementById('playPauseBtn');
+            
+            if (isPlaying) {
+                Object.values(videos).forEach(v => v && v.element.pause());
+                isPlaying = false;
+                btn.textContent = '▶️ 播放';
+            } else {
+                Object.values(videos).forEach(v => v && v.element.play());
+                isPlaying = true;
+                btn.textContent = '⏸️ 暂停';
+                renderFrame();
+            }
+        });
+
+        // 停止
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            Object.values(videos).forEach(v => {
+                if (v) {
+                    v.element.pause();
+                    v.element.currentTime = 0;
+                }
+            });
+            isPlaying = false;
+            document.getElementById('playPauseBtn').textContent = '▶️ 播放';
+            renderFrame();
+        });
+
+        // 进度条点击
+        document.getElementById('progressBar').addEventListener('click', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            
+            Object.values(videos).forEach(v => {
+                if (v) {
+                    v.element.currentTime = v.element.duration * percent;
+                }
+            });
+            renderFrame();
+        });
+
+        // 开始录制
+        document.getElementById('startRecBtn').addEventListener('click', () => {
+            const selectedCamera = exportCameraSelect ? exportCameraSelect.value : '';
+            const statusMsg = document.getElementById('statusMessage');
+
+            if (!selectedCamera) {
+                statusMsg.className = 'status-message error';
+                statusMsg.textContent = '⚠️ 请选择需要导出的摄像头';
+                setTimeout(() => {
+                    statusMsg.className = 'status-message';
+                }, 3000);
+                return;
+            }
+
+            if (!videos[selectedCamera]) {
+                statusMsg.className = 'status-message error';
+                statusMsg.textContent = '⚠️ 所选摄像头视频未加载，请重新选择';
+                setTimeout(() => {
+                    statusMsg.className = 'status-message';
+                }, 3000);
+                return;
+            }
+            
+            const compositeCanvas = document.createElement('canvas');
+            compositeCanvas.width = canvases[selectedCamera].width;
+            compositeCanvas.height = canvases[selectedCamera].height;
+
+            const compositeCtx = compositeCanvas.getContext('2d');
+            
+            // 创建录制器
+            const stream = compositeCanvas.captureStream(FPS);
+            recorder = new MediaRecorder(stream, {
+                mimeType: supportedFormat.mimeType,
+                videoBitsPerSecond: BITRATE
+            });
+
+            recordedChunks = [];
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+            recorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: supportedFormat.mimeType });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                const fileCamera = selectedCamera || 'camera';
+                a.download = `tesla_export_${fileCamera}_${Date.now()}.${supportedFormat.ext}`;
+                a.click();
+                
+                URL.revokeObjectURL(url);
+                
+                updateStartButtonState();
+                document.getElementById('stopRecBtn').disabled = true;
+                
+                statusMsg.className = 'status-message info';
+                statusMsg.textContent = '✅ 录制完成，视频已开始下载！';
+                
+                setTimeout(() => {
+                    statusMsg.className = 'status-message';
+                }, 5000);
+
+                recorder = null;
+            };
+
+            // 录制渲染循环
+            function recordFrame() {
+                compositeCtx.clearRect(0, 0, compositeCanvas.width, compositeCanvas.height);
+                compositeCtx.drawImage(canvases[selectedCamera], 0, 0, compositeCanvas.width, compositeCanvas.height);
+
+                if (isRecording) {
+                    requestAnimationFrame(recordFrame);
+                }
+            }
+
+            recorder.start(10);
+            isRecording = true;
+            
+            // 确保视频在播放
+            if (!isPlaying) {
+                Object.values(videos).forEach(v => v && v.element.play());
+                isPlaying = true;
+                document.getElementById('playPauseBtn').textContent = '⏸️ 暂停';
+            }
+
+            recordFrame();
+
+            updateStartButtonState();
+            document.getElementById('stopRecBtn').disabled = false;
+            
+            statusMsg.className = 'status-message recording';
+            const label = cameraLabels[selectedCamera] || selectedCamera.toUpperCase();
+            statusMsg.textContent = `🔴 正在录制 ${label} 视频...`;
+        });
+
+        // 停止录制
+        document.getElementById('stopRecBtn').addEventListener('click', () => {
+            if (!recorder) {
+                const statusMsg = document.getElementById('statusMessage');
+                statusMsg.className = 'status-message error';
+                statusMsg.textContent = '⚠️ 当前没有正在录制的任务';
+                setTimeout(() => {
+                    statusMsg.className = 'status-message';
+                }, 3000);
+                return;
+            }
+
+            isRecording = false;
+
+            try {
+                recorder.stop();
+            } catch (err) {
+                console.error('停止录制失败', err);
+                updateStartButtonState();
+                document.getElementById('stopRecBtn').disabled = true;
+                
+                const statusMsg = document.getElementById('statusMessage');
+                statusMsg.className = 'status-message error';
+                statusMsg.textContent = '❌ 停止录制失败，请重试';
+                return;
+            }
+
+            document.getElementById('stopRecBtn').disabled = true;
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.className = 'status-message info';
+            statusMsg.textContent = '⏳ 正在停止录制并生成下载文件...';
+        });
+    </script>
+</body>
+</html>
